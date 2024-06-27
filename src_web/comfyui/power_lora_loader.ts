@@ -145,7 +145,7 @@ class RgthreePowerLoraLoader extends RgthreeBaseServerNode {
           rgthreeApi.getLoras().then((loras) => {
             showLoraChooser(
               event as PointerEvent,
-              (value: ContextMenuItem | string) => {
+              (value: ContextMenuItem | string, _options: IContextMenuOptions, leafEvent: MouseEvent) => {
                 if (typeof value === "string") {
                   if (value.includes("Power Lora Chooser")) {
                     // new RgthreePowerLoraChooserDialog().show();
@@ -157,7 +157,9 @@ class RgthreePowerLoraLoader extends RgthreeBaseServerNode {
                     this.setDirtyCanvas(true, true);
                   }
                 }
-                // }, null, ["⚡️ Power Lora Chooser", ...loras]);
+                  // If true (Shift held down), keeps the context menu open to allow for selecting multiple LoRAs
+              return leafEvent.shiftKey;
+            // }, null, ["⚡️ Power Lora Chooser", ...loras]);
               },
               null,
               [...loras],
