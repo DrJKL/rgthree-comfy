@@ -85,6 +85,10 @@ app.registerExtension({
           options.rgthree_originalCallback ||
           options.parentMenu?.options.rgthree_originalCallback ||
           options.callback;
+        options.rgthree_allowAllFolderItems =
+          options.rgthree_allowAllFolderItems ??
+          options.parentMenu?.options.rgthree_allowAllFolderItems ??
+          false;
         const oldCallback = options.rgthree_originalCallback;
         options.callback = undefined;
         const newCallback = (
@@ -103,8 +107,35 @@ app.registerExtension({
           newValues.push({
             content: `📁 ${folderName}`,
             has_submenu: true,
-            callback: () => {
-              /* no-op, use the item callback. */
+            callback: (_value: ContextMenuItem,
+              options: IContextMenuOptions,
+              event: MouseEvent,
+              parentMenu: ContextMenu | undefined,
+              node: LGraphNode) => {
+              if (!(options.rgthree_allowAllFolderItems && event.ctrlKey && event.shiftKey)) {
+                return false;
+              } 
+              
+              if (folderValues.length > 10 && !window.confirm(`This would run the menu operation on ${folderValues.length} items. Are you sure?`)) {
+                return false;
+              }
+
+              // Call all the callbacks
+              for (const value of folderValues) {
+                value?.callback?.(value, options, event, parentMenu, node);
+              }
+
+              // Close the menus.
+              let rootMenu = parentMenu;
+              while (rootMenu?.parentMenu) {
+                rootMenu = rootMenu.parentMenu;
+              }
+              rootMenu?.close();
+
+              // Have to clear this to prevent the submenu from opening up in litegraph.
+              _value!.submenu = undefined;
+
+              return false;
             },
             submenu: {
               options: folderValues.map((value) => {
