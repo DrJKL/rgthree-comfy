@@ -8,6 +8,7 @@ import folder_paths
 from ..utils import path_exists
 from .utils_server import get_param, is_param_falsy
 from .utils_info import delete_model_info, get_model_info, set_model_info_partial
+from ..power_prompt_utils import get_lora_by_filename
 
 routes = PromptServer.instance.routes
 
@@ -142,29 +143,59 @@ async def models_info_response(request,
                                model_type,
                                maybe_fetch_civitai=False,
                                maybe_fetch_metadata=False):
-  """Gets model info for all or a single model type."""
-  api_response = {'status': 200}
-  file_param = get_param(request, 'file')
-  light = not is_param_falsy(request, 'light')
-  if file_param is not None:
-    info_data = await get_model_info(file_param,
-                                     model_type,
-                                     maybe_fetch_civitai=maybe_fetch_civitai,
-                                     maybe_fetch_metadata=maybe_fetch_metadata,
-                                     light=light)
-    if info_data is None:
-      api_response['status'] = '404'
-      api_response['error'] = f'No {model_type} found at path'
+    """Gets model info for all or a single model type."""
+    api_response = {"status": 200}
+    file_param = get_param(request, "file")
+    light = not is_param_falsy(request, "light")
+    if file_param is not None:
+        info_data = await get_model_info(
+            file_param,
+            model_type,
+            maybe_fetch_civitai=maybe_fetch_civitai,
+            maybe_fetch_metadata=maybe_fetch_metadata,
+            light=light,
+        )
+        if info_data is None:
+            api_response["status"] = "404"
+            api_response["error"] = f"No {model_type} found at path"
+        else:
+            api_response["data"] = info_data
     else:
-      api_response['data'] = info_data
-  else:
-    api_response['data'] = []
-    file_params = folder_paths.get_filename_list(model_type)
-    for file_param in file_params:
-      info_data = await get_model_info(file_param,
-                                       model_type,
-                                       maybe_fetch_civitai=maybe_fetch_civitai,
-                                       maybe_fetch_metadata=maybe_fetch_metadata,
-                                       light=light)
-      api_response['data'].append(info_data)
-  return api_response
+        api_response["data"] = []
+        file_params = folder_paths.get_filename_list(model_type)
+        for file_param in file_params:
+            info_data = await get_model_info(
+                file_param,
+                model_type,
+                maybe_fetch_civitai=maybe_fetch_civitai,
+                maybe_fetch_metadata=maybe_fetch_metadata,
+                light=light,
+            )
+            api_response["data"].append(info_data)
+    return api_response
+
+
+LoraMap = dict[str, str | None]
+LoraAPIResponseDict = dict[str, int | str | LoraMap]
+
+
+@routes.get("/rgthree/api/loras/info/correct_paths")
+async def api_get_lora_fixed_path(request: web.Request) -> web.Response:
+    """Finds model paths from the filesystem for the provided files."""
+    api_response: LoraAPIResponseDict = {"status": 200}
+    lora_files: list[str] | None = request.query.getall("file", None)
+
+    if lora_files is None:
+        api_response["status"] = 404
+        api_response["error"] = "No Model files provided"
+        return web.json_response(api_response)
+
+    correct_locations: LoraMap = {}
+
+    for lora in lora_files:
+        corrected_location = get_lora_by_filename(lora)
+        correct_locations[lora] = corrected_location
+
+    api_response["data"] = correct_locations
+
+    return web.json_response(api_response)

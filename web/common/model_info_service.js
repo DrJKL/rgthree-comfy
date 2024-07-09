@@ -51,6 +51,9 @@ class BaseModelInfoService extends EventTarget {
     setFreshInfo(file, info) {
         this.fileToInfo.set(file, info);
     }
+    async getCorrectedLoraPaths(loras) {
+        return await rgthreeApi.getCorrectedLoraPaths(loras);
+    }
 }
 class LoraInfoService extends BaseModelInfoService {
     constructor() {
