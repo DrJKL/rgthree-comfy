@@ -69,7 +69,35 @@ class RgthreePowerLoraLoader extends RgthreeBaseServerNode {
                 });
             },
         };
-        options.splice(options.length - 1, 0, fetchInfoMenuItem);
+        const fixPathsMenuItem = {
+            content: "Update paths for all LoRAs",
+            callback: (_value, _options, _event, _parentMenu, _node) => {
+                const loraWidgets = this.widgets.filter((widget) => widget instanceof PowerLoraLoaderWidget);
+                const loras = loraWidgets
+                    .map((widget) => widget.value.lora)
+                    .filter((file) => file !== null);
+                this.logger.debugParts("Updating Possibly outdated Lora Paths.");
+                MODEL_INFO_SERVICE.getCorrectedLoraPaths(loras).then((correctedPaths) => {
+                    if (!correctedPaths) {
+                        this.logger.debugParts('Corrected Paths not found (null response)');
+                        return;
+                    }
+                    for (const widget of loraWidgets) {
+                        const loraName = widget.value.lora;
+                        if (!loraName) {
+                            continue;
+                        }
+                        const correctedNameMaybe = correctedPaths[loraName];
+                        if (!correctedNameMaybe || loraName === correctedNameMaybe) {
+                            continue;
+                        }
+                        widget.value.lora = correctedNameMaybe;
+                    }
+                    this.setDirtyCanvas(true, true);
+                });
+            },
+        };
+        options.splice(options.length - 1, 0, fetchInfoMenuItem, fixPathsMenuItem);
     }
     addNewLoraWidget(lora) {
         this.loraWidgetsCounter++;

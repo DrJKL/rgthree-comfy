@@ -73,6 +73,15 @@ class RgthreeApi {
     return infos;
   }
 
+  async getCorrectedLoraPaths(loras: string[]): Promise<Record<string, string | undefined> | null> {
+    const params = new URLSearchParams();
+    for (const lora of loras) {
+      params.append("file", lora);
+    }
+    const path = `/loras/info/correct_paths?` + params.toString();
+    return await this.fetchApiJsonOrNull<Record<string, string | undefined>>(path);
+  }
+
   async clearLorasInfo(file?: string): Promise<void> {
     const path = `/loras/info/clear` + (file ? `?file=${encodeURIComponent(file)}` : '');
     await this.fetchApiJsonOrNull<RgthreeModelInfo[]>(path);

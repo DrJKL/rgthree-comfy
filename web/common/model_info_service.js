@@ -32,6 +32,9 @@ class ModelInfoService extends EventTarget {
     async refreshLora(file) {
         return this.fetchLora(file, true);
     }
+    async getCorrectedLoraPaths(loras) {
+        return await rgthreeApi.getCorrectedLoraPaths(loras);
+    }
     async clearLoraFetchedData(file) {
         await rgthreeApi.clearLorasInfo(file);
         this.loraToInfo.delete(file);
