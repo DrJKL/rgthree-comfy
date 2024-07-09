@@ -188,6 +188,8 @@ export interface IContextMenuItem {
     rgthree_originalValue?: IContextMenuItem;
     // @rgthree - this was missing and passed through for getSlotMenuOptions default.
     slot?: {input?: INodeInputSlot, output?: INodeOutputSlot};
+    // @rgthree - Added for menu_auto_nest all-items in folder callback
+    rgthree_allowAllFolderItems?: boolean;
 }
 export interface IContextMenuOptions {
     callback?: ContextMenuEventListener;
@@ -207,6 +209,8 @@ export interface IContextMenuOptions {
     className?: string;
     // @rgthree - Added for menu_auto_nest
     rgthree_originalCallback?: ContextMenuEventListener;
+    // @rgthree - Added for menu_auto_nest all-items in folder callback
+    rgthree_allowAllFolderItems?: boolean;
 }
 
 export type ContextMenuItem = IContextMenuItem | null;
