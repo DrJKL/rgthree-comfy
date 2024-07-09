@@ -28,12 +28,13 @@ export async function showLoraChooser(
     loras = ["None", ...(await rgthreeApi.getLoras())];
   }
   new LiteGraph.ContextMenu(loras, {
-    event: event,
+    event,
     parentMenu,
+    callback,
     title: "Choose a lora",
     scale: Math.max(1, canvas.ds?.scale ?? 1),
     className: "dark",
-    callback,
+    rgthree_allowAllFolderItems: true,
   });
 }
 
