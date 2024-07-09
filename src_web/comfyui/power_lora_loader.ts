@@ -135,7 +135,41 @@ class RgthreePowerLoraLoader extends RgthreeBaseServerNode {
           });
       },
     };
-    options.splice(options.length - 1, 0, fetchInfoMenuItem);
+    const fixPathsMenuItem = {
+      content: "Update paths for all LoRAs",
+      callback: (
+        _value: ContextMenuItem,
+        _options: IContextMenuOptions,
+        _event: MouseEvent,
+        _parentMenu: ContextMenu | undefined,
+        _node: TLGraphNode,
+      ) => {
+        const loraWidgets: PowerLoraLoaderWidget[] = this.widgets.filter(
+          (widget): widget is PowerLoraLoaderWidget => widget instanceof PowerLoraLoaderWidget,
+        );
+        const loras = loraWidgets
+          .map((widget) => widget.value.lora)
+          .filter((file): file is string => file !== null);
+        this.logger.debugParts("Updating Possibly outdated Lora Paths.");
+        MODEL_INFO_SERVICE.getCorrectedLoraPaths(loras).then((correctedPaths) => {
+            if (!correctedPaths) {
+              this.logger.debugParts('Corrected Paths not found (null response)');
+              return;
+            }
+          for (const widget of loraWidgets) {
+            const loraName = widget.value.lora;
+            if (!loraName) { continue; }
+            const correctedNameMaybe = correctedPaths[loraName];
+            if (!correctedNameMaybe || loraName === correctedNameMaybe) { continue; }
+            // Actually change the value
+            widget.value.lora = correctedNameMaybe;
+          }
+          // Force the canvas update
+          this.setDirtyCanvas(true, true);
+        });
+      },
+    };
+    options.splice(options.length - 1, 0, fetchInfoMenuItem, fixPathsMenuItem);
   }
 
   /** Adds a new lora widget in the proper slot. */
