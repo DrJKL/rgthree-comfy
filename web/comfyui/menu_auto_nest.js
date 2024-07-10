@@ -11,7 +11,7 @@ app.registerExtension({
         const logger = rgthree.newLogSession("[ContextMenuAutoNest]");
         const existingContextMenu = LiteGraph.ContextMenu;
         LiteGraph.ContextMenu = function (values, options) {
-            var _a, _b, _c, _d, _e, _f, _g, _h;
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j;
             const threshold = CONFIG_SERVICE.getConfigValue("features.menu_auto_nest.threshold", 20);
             const enabled = CONFIG_SERVICE.getConfigValue("features.menu_auto_nest.subdirs", false);
             let incompatible = !enabled || !!((_a = options === null || options === void 0 ? void 0 : options.extra) === null || _a === void 0 ? void 0 : _a.rgthree_doNotNest);
@@ -68,14 +68,14 @@ app.registerExtension({
                         ((_d = options.parentMenu) === null || _d === void 0 ? void 0 : _d.options.rgthree_originalCallback) ||
                         options.callback;
                 options.rgthree_allowAllFolderItems =
-                    (_f = (_d = options.rgthree_allowAllFolderItems) !== null && _d !== void 0 ? _d : (_e = options.parentMenu) === null || _e === void 0 ? void 0 : _e.options.rgthree_allowAllFolderItems) !== null && _f !== void 0 ? _f : false;
+                    (_g = (_e = options.rgthree_allowAllFolderItems) !== null && _e !== void 0 ? _e : (_f = options.parentMenu) === null || _f === void 0 ? void 0 : _f.options.rgthree_allowAllFolderItems) !== null && _g !== void 0 ? _g : false;
                 const oldCallback = options.rgthree_originalCallback;
                 options.callback = undefined;
                 const newCallback = (item, options, event, parentMenu, node) => {
                     return oldCallback === null || oldCallback === void 0 ? void 0 : oldCallback(item === null || item === void 0 ? void 0 : item.rgthree_originalValue, options, event, undefined, node);
                 };
                 const [n, v] = logger.infoParts(`Nested folders found (${foldersCount}).`);
-                (_g = console[n]) === null || _g === void 0 ? void 0 : _g.call(console, ...v);
+                (_h = console[n]) === null || _h === void 0 ? void 0 : _h.call(console, ...v);
                 const newValues = [];
                 for (const [folderName, folderValues] of Object.entries(folders)) {
                     newValues.push({
@@ -123,7 +123,7 @@ app.registerExtension({
                 }));
             }
             if (options.scale == null) {
-                options.scale = Math.max(((_h = app.canvas.ds) === null || _h === void 0 ? void 0 : _h.scale) || 1, 1);
+                options.scale = Math.max(((_j = app.canvas.ds) === null || _j === void 0 ? void 0 : _j.scale) || 1, 1);
             }
             return existingContextMenu.call(this, values, options);
         };
