@@ -66,6 +66,9 @@ class RgthreePowerLoraLoader extends RgthreeBaseServerNode {
   /** Keep track of the spacer, new lora widgets will go before it when it exists. */
   private widgetButtonSpacer: IWidget | null = null;
 
+  /** Update on adding/removing LoRAs. */
+  commonPrefix = '';
+
   constructor(title = NODE_CLASS.title) {
     super(title);
 
@@ -172,6 +175,19 @@ class RgthreePowerLoraLoader extends RgthreeBaseServerNode {
     options.splice(options.length - 1, 0, fetchInfoMenuItem, fixPathsMenuItem);
   }
 
+  private updateCommonPrefix() {
+    if (!this.hasLoraWidgets) {
+      return;
+    }
+    const loraWidgets = this.getLoraWidgets();
+    const loraNames = loraWidgets.map(w => w.value.lora).filter((lora): lora is string => lora != null);
+    
+    const prefix = longestCommonPrefix(loraNames);
+    const separator = prefix.includes('\\') ? '\\' : '/';
+
+    this.commonPrefix = prefix.substring(0, prefix.lastIndexOf(separator) + 1);
+  }
+
   /** Adds a new lora widget in the proper slot. */
   private addNewLoraWidget(lora?: string) {
     this.loraWidgetsCounter++;
@@ -182,6 +198,7 @@ class RgthreePowerLoraLoader extends RgthreeBaseServerNode {
     if (this.widgetButtonSpacer) {
       moveArrayItem(this.widgets, widget, this.widgets.indexOf(this.widgetButtonSpacer));
     }
+    this.updateCommonPrefix();
     return widget;
   }
 
@@ -194,7 +211,8 @@ class RgthreePowerLoraLoader extends RgthreeBaseServerNode {
       ),
       0,
     );
-    moveArrayItem(this.widgets, this.addCustomWidget(new PowerLoraLoaderHeaderWidget()), 1);
+    moveArrayItem(this.widgets, this.addCustomWidget(new PowerLoraLoaderHeaderWidgetPath()), 1);
+    moveArrayItem(this.widgets, this.addCustomWidget(new PowerLoraLoaderHeaderWidget()), 2);
 
     this.widgetButtonSpacer = this.addCustomWidget(
       new RgthreeDividerWidget({ marginTop: 4, marginBottom: 0, thickness: 0 }),
@@ -321,6 +339,7 @@ class RgthreePowerLoraLoader extends RgthreeBaseServerNode {
           content: `🗑️ Remove`,
           callback: () => {
             removeArrayItem(this.widgets, widget);
+            this.updateCommonPrefix();
           },
         },
       ];
@@ -349,6 +368,11 @@ class RgthreePowerLoraLoader extends RgthreeBaseServerNode {
    */
   hasLoraWidgets() {
     return !!this.widgets?.find((w) => w.name?.startsWith("lora_"));
+  }
+  getLoraWidgets(): PowerLoraLoaderWidget[] {
+    return this.widgets
+    ?.filter((w) => w.name?.startsWith("lora_"))
+    ?.filter((w): w is PowerLoraLoaderWidget =>  w instanceof PowerLoraLoaderWidget) ?? [];
   }
 
   /**
@@ -430,6 +454,43 @@ class RgthreePowerLoraLoader extends RgthreeBaseServerNode {
       </ul>`;
   }
 }
+function longestCommonPrefix(strings: string[]) {
+  const firstString = strings[0] ?? '';
+  for (let i = 0; i < firstString.length; i++) {
+    for (const other of strings.slice(1)) {
+      if (other?.[i] !== firstString[i]) {
+        return firstString.substring(0, i);
+      }
+    }
+  }
+  return firstString;
+}
+
+class PowerLoraLoaderHeaderWidgetPath extends RgthreeBaseWidget<{type: string}> {
+  value = { type: "PowerLoraLoaderHeaderWidgetPath" };
+
+  constructor(name: string = "PowerLoraLoaderHeaderWidgetPath") {
+    super(name);
+  }
+
+  draw(
+    ctx: CanvasRenderingContext2D,
+    node: RgthreePowerLoraLoader,
+    w: number,
+    posY: number,
+    height: number,) {
+    if (!node.commonPrefix) {
+      return;
+    }
+    posY += 2;
+    let midY = posY + height * 0.5;
+    let posX = 10;
+    ctx.fillStyle = LiteGraph.WIDGET_TEXT_COLOR;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(fitString(ctx, `LoRA Path: ${node.commonPrefix}`, w - 10), posX, midY);
+  }
+}
 
 /**
  * The PowerLoraLoaderHeaderWidget that renders a toggle all switch, as well as some title info
@@ -469,7 +530,7 @@ class PowerLoraLoaderHeaderWidget extends RgthreeBaseWidget<{ type: string }> {
 
     // Move slightly down. We don't have a border and this feels a bit nicer.
     posY += 2;
-    const midY = posY + height * 0.5;
+    let midY = posY + height * 0.5;
     let posX = 10;
     ctx.save();
     this.hitAreas.toggle.bounds = drawTogglePart(ctx, { posX, posY, height, value: allLoraState });
@@ -594,11 +655,12 @@ class PowerLoraLoaderWidget extends RgthreeBaseWidget<PowerLoraLoaderWidgetValue
   }
 
   /** Draws our widget with a toggle, lora selector, and number selector all in a single row. */
-  draw(ctx: CanvasRenderingContext2D, node: TLGraphNode, w: number, posY: number, height: number) {
+  draw(ctx: CanvasRenderingContext2D, node: RgthreePowerLoraLoader, w: number, posY: number, height: number) {
     // Since draw is the loop that runs, this is where we'll check the property state (rather than
     // expect the node to tell us it's state etc).
     let currentShowModelAndClip =
       node.properties[PROP_LABEL_SHOW_STRENGTHS] === PROP_VALUE_SHOW_STRENGTHS_SEPARATE;
+    let {commonPrefix} = node;
     if (this.showModelAndClip !== currentShowModelAndClip) {
       let oldShowModelAndClip = this.showModelAndClip;
       this.showModelAndClip = currentShowModelAndClip;
@@ -728,7 +790,9 @@ class PowerLoraLoaderWidget extends RgthreeBaseWidget<PowerLoraLoaderWidgetValue
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     const loraLabel = String(this.value?.lora || "None");
-    ctx.fillText(fitString(ctx, loraLabel, loraWidth), posX, midY);
+    const prunedLoraLabel = loraLabel.replace(/\.safetensors$/, '').substring(commonPrefix.length);
+
+    ctx.fillText(fitString(ctx, prunedLoraLabel, loraWidth), posX, midY);
 
     this.hitAreas.lora.bounds = [posX, loraWidth];
     posX += loraWidth + innerMargin;

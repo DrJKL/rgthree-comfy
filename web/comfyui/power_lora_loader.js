@@ -22,6 +22,7 @@ class RgthreePowerLoraLoader extends RgthreeBaseServerNode {
         this.logger = rgthree.newLogSession(`[Power Lora Stack]`);
         this.loraWidgetsCounter = 0;
         this.widgetButtonSpacer = null;
+        this.commonPrefix = '';
         this.properties[PROP_LABEL_SHOW_STRENGTHS] = PROP_VALUE_SHOW_STRENGTHS_SINGLE;
         rgthreeApi.getLoras();
     }
@@ -99,6 +100,16 @@ class RgthreePowerLoraLoader extends RgthreeBaseServerNode {
         };
         options.splice(options.length - 1, 0, fetchInfoMenuItem, fixPathsMenuItem);
     }
+    updateCommonPrefix() {
+        if (!this.hasLoraWidgets) {
+            return;
+        }
+        const loraWidgets = this.getLoraWidgets();
+        const loraNames = loraWidgets.map(w => w.value.lora).filter((lora) => lora != null);
+        const prefix = longestCommonPrefix(loraNames);
+        const separator = prefix.includes('\\') ? '\\' : '/';
+        this.commonPrefix = prefix.substring(0, prefix.lastIndexOf(separator) + 1);
+    }
     addNewLoraWidget(lora) {
         this.loraWidgetsCounter++;
         const widget = this.addCustomWidget(new PowerLoraLoaderWidget("lora_" + this.loraWidgetsCounter));
@@ -107,11 +118,13 @@ class RgthreePowerLoraLoader extends RgthreeBaseServerNode {
         if (this.widgetButtonSpacer) {
             moveArrayItem(this.widgets, widget, this.widgets.indexOf(this.widgetButtonSpacer));
         }
+        this.updateCommonPrefix();
         return widget;
     }
     addNonLoraWidgets() {
         moveArrayItem(this.widgets, this.addCustomWidget(new RgthreeDividerWidget({ marginTop: 4, marginBottom: 0, thickness: 0 })), 0);
-        moveArrayItem(this.widgets, this.addCustomWidget(new PowerLoraLoaderHeaderWidget()), 1);
+        moveArrayItem(this.widgets, this.addCustomWidget(new PowerLoraLoaderHeaderWidgetPath()), 1);
+        moveArrayItem(this.widgets, this.addCustomWidget(new PowerLoraLoaderHeaderWidget()), 2);
         this.widgetButtonSpacer = this.addCustomWidget(new RgthreeDividerWidget({ marginTop: 4, marginBottom: 0, thickness: 0 }));
         this.addCustomWidget(new RgthreeBetterButtonWidget("➕ Add Lora", (event, pos, node) => {
             rgthreeApi.getLoras().then((loras) => {
@@ -193,6 +206,7 @@ class RgthreePowerLoraLoader extends RgthreeBaseServerNode {
                     content: `🗑️ Remove`,
                     callback: () => {
                         removeArrayItem(this.widgets, widget);
+                        this.updateCommonPrefix();
                     },
                 },
             ];
@@ -208,6 +222,10 @@ class RgthreePowerLoraLoader extends RgthreeBaseServerNode {
     hasLoraWidgets() {
         var _b;
         return !!((_b = this.widgets) === null || _b === void 0 ? void 0 : _b.find((w) => { var _b; return (_b = w.name) === null || _b === void 0 ? void 0 : _b.startsWith("lora_"); }));
+    }
+    getLoraWidgets() {
+        var _b, _c, _d;
+        return (_d = (_c = (_b = this.widgets) === null || _b === void 0 ? void 0 : _b.filter((w) => { var _b; return (_b = w.name) === null || _b === void 0 ? void 0 : _b.startsWith("lora_"); })) === null || _c === void 0 ? void 0 : _c.filter((w) => w instanceof PowerLoraLoaderWidget)) !== null && _d !== void 0 ? _d : [];
     }
     allLorasState() {
         var _b, _c, _d;
@@ -287,6 +305,36 @@ RgthreePowerLoraLoader[_a] = {
     type: "combo",
     values: [PROP_VALUE_SHOW_STRENGTHS_SINGLE, PROP_VALUE_SHOW_STRENGTHS_SEPARATE],
 };
+function longestCommonPrefix(strings) {
+    var _b;
+    const firstString = (_b = strings[0]) !== null && _b !== void 0 ? _b : '';
+    for (let i = 0; i < firstString.length; i++) {
+        for (const other of strings.slice(1)) {
+            if ((other === null || other === void 0 ? void 0 : other[i]) !== firstString[i]) {
+                return firstString.substring(0, i);
+            }
+        }
+    }
+    return firstString;
+}
+class PowerLoraLoaderHeaderWidgetPath extends RgthreeBaseWidget {
+    constructor(name = "PowerLoraLoaderHeaderWidgetPath") {
+        super(name);
+        this.value = { type: "PowerLoraLoaderHeaderWidgetPath" };
+    }
+    draw(ctx, node, w, posY, height) {
+        if (!node.commonPrefix) {
+            return;
+        }
+        posY += 2;
+        let midY = posY + height * 0.5;
+        let posX = 10;
+        ctx.fillStyle = LiteGraph.WIDGET_TEXT_COLOR;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText(fitString(ctx, `LoRA Path: ${node.commonPrefix}`, w - 10), posX, midY);
+    }
+}
 class PowerLoraLoaderHeaderWidget extends RgthreeBaseWidget {
     constructor(name = "PowerLoraLoaderHeaderWidget") {
         super(name);
@@ -307,7 +355,7 @@ class PowerLoraLoaderHeaderWidget extends RgthreeBaseWidget {
         const lowQuality = isLowQuality();
         const allLoraState = node.allLorasState();
         posY += 2;
-        const midY = posY + height * 0.5;
+        let midY = posY + height * 0.5;
         let posX = 10;
         ctx.save();
         this.hitAreas.toggle.bounds = drawTogglePart(ctx, { posX, posY, height, value: allLoraState });
@@ -386,6 +434,7 @@ class PowerLoraLoaderWidget extends RgthreeBaseWidget {
     draw(ctx, node, w, posY, height) {
         var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
         let currentShowModelAndClip = node.properties[PROP_LABEL_SHOW_STRENGTHS] === PROP_VALUE_SHOW_STRENGTHS_SEPARATE;
+        let { commonPrefix } = node;
         if (this.showModelAndClip !== currentShowModelAndClip) {
             let oldShowModelAndClip = this.showModelAndClip;
             this.showModelAndClip = currentShowModelAndClip;
@@ -486,7 +535,8 @@ class PowerLoraLoaderWidget extends RgthreeBaseWidget {
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
         const loraLabel = String(((_p = this.value) === null || _p === void 0 ? void 0 : _p.lora) || "None");
-        ctx.fillText(fitString(ctx, loraLabel, loraWidth), posX, midY);
+        const prunedLoraLabel = loraLabel.replace(/\.safetensors$/, '').substring(commonPrefix.length);
+        ctx.fillText(fitString(ctx, prunedLoraLabel, loraWidth), posX, midY);
         this.hitAreas.lora.bounds = [posX, loraWidth];
         posX += loraWidth + innerMargin;
         ctx.globalAlpha = app.canvas.editor_alpha;
