@@ -42,6 +42,13 @@ const PROP_LABEL_SHOW_STRENGTHS_STATIC = `@${PROP_LABEL_SHOW_STRENGTHS}`;
 const PROP_VALUE_SHOW_STRENGTHS_SINGLE = "Single Strength";
 const PROP_VALUE_SHOW_STRENGTHS_SEPARATE = "Separate Model & Clip";
 
+const PROP_LABEL_NAME_OPTIONS = "Display name type";
+const PROP_LABEL_NAME_OPTIONS_STATIC = `@${PROP_LABEL_NAME_OPTIONS}`;
+const PROP_VALUE_NAME_OPTIONS_FILENAME = "LoRA Filename";
+const PROP_VALUE_NAME_OPTIONS_CIVITAI = "Civitai Name (if fetched)";
+type NameDisplay = typeof PROP_VALUE_NAME_OPTIONS_FILENAME| typeof PROP_VALUE_NAME_OPTIONS_CIVITAI;
+
+
 /**
  * The Power Lora Loader is a super-simply Lora Loader node that can load multiple Loras at once
  * in an ultra-condensed node allowing fast toggling, and advanced strength setting.
@@ -59,6 +66,11 @@ class RgthreePowerLoraLoader extends RgthreeBaseServerNode {
     type: "combo",
     values: [PROP_VALUE_SHOW_STRENGTHS_SINGLE, PROP_VALUE_SHOW_STRENGTHS_SEPARATE],
   };
+  static [PROP_LABEL_NAME_OPTIONS_STATIC] = {
+    type: "combo",
+    values: [PROP_VALUE_NAME_OPTIONS_FILENAME, PROP_VALUE_NAME_OPTIONS_CIVITAI],
+  };
+
 
   /** Counts the number of lora widgets. This is used to give unique names.  */
   private loraWidgetsCounter = 0;
@@ -73,6 +85,7 @@ class RgthreePowerLoraLoader extends RgthreeBaseServerNode {
     super(title);
 
     this.properties[PROP_LABEL_SHOW_STRENGTHS] = PROP_VALUE_SHOW_STRENGTHS_SINGLE;
+    this.properties[PROP_LABEL_NAME_OPTIONS] = PROP_VALUE_NAME_OPTIONS_CIVITAI;
 
     // Prefetch loras list.
     rgthreeApi.getLoras();
@@ -129,9 +142,8 @@ class RgthreePowerLoraLoader extends RgthreeBaseServerNode {
         const loraWidgets: PowerLoraLoaderWidget[] = this.widgets
           .filter((widget): widget is PowerLoraLoaderWidget => widget instanceof PowerLoraLoaderWidget);
         const refreshPromises = loraWidgets
-          .map(widget => widget.value.lora)
-          .filter((file): file is string => file !== null)
-          .map((file) => MODEL_INFO_SERVICE.refreshLora(file));
+          .map(widget => widget.getLoraInfo(true))
+;
           Promise.all(refreshPromises).then((loraInfo) => {
             // Silently succeeds or fails. Probably want a better notification than `alert`
             // alert(`LoRA info refreshed. ${loraInfo.length} checked`);
@@ -660,6 +672,7 @@ class PowerLoraLoaderWidget extends RgthreeBaseWidget<PowerLoraLoaderWidgetValue
     // expect the node to tell us it's state etc).
     let currentShowModelAndClip =
       node.properties[PROP_LABEL_SHOW_STRENGTHS] === PROP_VALUE_SHOW_STRENGTHS_SEPARATE;
+    let currentNameDisplayOption = node.properties[PROP_LABEL_NAME_OPTIONS];
     let {commonPrefix} = node;
     if (this.showModelAndClip !== currentShowModelAndClip) {
       let oldShowModelAndClip = this.showModelAndClip;
@@ -789,16 +802,24 @@ class PowerLoraLoaderWidget extends RgthreeBaseWidget<PowerLoraLoaderWidgetValue
     const loraWidth = rposX - posX;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    const loraLabel = String(this.value?.lora || "None");
-    const prunedLoraLabel = loraLabel.replace(/\.safetensors$/, '').substring(commonPrefix.length);
+    const loraLabel = this.getLoraName(commonPrefix, currentNameDisplayOption);
 
-    ctx.fillText(fitString(ctx, prunedLoraLabel, loraWidth), posX, midY);
+    ctx.fillText(fitString(ctx, loraLabel, loraWidth), posX, midY);
 
     this.hitAreas.lora.bounds = [posX, loraWidth];
     posX += loraWidth + innerMargin;
 
     ctx.globalAlpha = app.canvas.editor_alpha;
     ctx.restore();
+  }
+
+  private getLoraName(commonPrefix = '', nameDisplay: NameDisplay = PROP_VALUE_NAME_OPTIONS_CIVITAI) {
+    if (this.loraInfo?.name && nameDisplay === PROP_VALUE_NAME_OPTIONS_CIVITAI) {
+      return this.loraInfo.name;
+    }
+    const loraLabel = String(this.value?.lora || "None");
+    const prunedLoraLabel = loraLabel.replace(/\.safetensors$/, '').substring(commonPrefix.length);
+    return prunedLoraLabel;
   }
 
   serializeValue(serializedNode: SerializedLGraphNode, widgetIndex: number) {
@@ -904,7 +925,7 @@ class PowerLoraLoaderWidget extends RgthreeBaseWidget<PowerLoraLoaderWidgetValue
     this.value[prop] = Math.round(strength * 100) / 100;
   }
 
-  private getLoraInfo(force = false) {
+  getLoraInfo(force = false) {
     if (!this.loraInfoPromise || force == true) {
       let promise;
       if (this.value.lora && this.value.lora != "None") {
