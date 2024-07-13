@@ -179,6 +179,7 @@ class RgthreePowerLoraLoader extends RgthreeBaseServerNode {
             // Actually change the value
             widget.value.lora = correctedNameMaybe;
           }
+          this.updateCommonPrefix();
           // Force the canvas update
           this.setDirtyCanvas(true, true);
         });
