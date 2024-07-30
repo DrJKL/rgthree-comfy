@@ -81,7 +81,7 @@ log_step(status="Done")
 log_step(msg='Cleaning Imports')
 js_files = glob(os.path.join(DIR_WEB, '**', '*.js'), recursive=True)
 for file in js_files:
-  rel_path = file.replace(f'{DIR_WEB}/', "")
+  rel_path = file.replace(f'{DIR_WEB}{os.sep}', "")
   with open(file, 'r', encoding="utf-8") as f:
     filedata = f.read()
   num = rel_path.count(os.sep)
@@ -91,7 +91,7 @@ for file in js_files:
   else:
     filedata = re.sub(r'(from\s+["\'])rgthree/', f'\\1{"../" * num}', filedata)
     filedata = re.sub(r'(from\s+["\'])scripts/', f'\\1{"../" * (num + 1)}scripts/', filedata)
-  with open(file, 'w', encoding="utf-8") as f:
+  with open(file, 'w', encoding="utf-8", newline='\n') as f:
     f.write(filedata)
 log_step(status="Done")
 
