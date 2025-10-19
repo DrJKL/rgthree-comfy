@@ -25,7 +25,7 @@ export async function showLoraChooser(
 ) {
   const canvas = app.canvas as TLGraphCanvas;
   if (!loras) {
-    loras = ["None", ...(await rgthreeApi.getLoras().then((loras) => loras.map((l) => l.file)))];
+    loras = ["None", ...(await rgthreeApi.getLoras().then((loras) => loras.filter(Boolean).map((l) => l.file)))];
   }
   new LiteGraph.ContextMenu(loras, {
     event: event,
@@ -96,3 +96,4 @@ export function showWidgetsChooser<T extends IContextMenuValue>(
     });
   }
 }
+
