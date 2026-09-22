@@ -91,7 +91,7 @@ class RgthreeSuperPowerLoraLoader extends RgthreeBaseServerNode {
                 
                 // Add LoRAs (visibility will be handled by getVisibleWidgets method)
                 for (const v of grouped[tag]) {
-                    const widget = new SuperPowerLoraLoaderWidget("lora_" + (++this.loraWidgetsCounter));
+                    const widget = new SuperPowerLoraLoaderWidget("lora_" + (++this.loraWidgetsCounter), this);
                     widget.value = v;
                     this.addCustomWidget(widget);
                 }
@@ -99,7 +99,7 @@ class RgthreeSuperPowerLoraLoader extends RgthreeBaseServerNode {
         } else {
             // Tags disabled - just add LoRAs in original order without headers
             for (const v of loraValues) {
-                const widget = new SuperPowerLoraLoaderWidget("lora_" + (++this.loraWidgetsCounter));
+                const widget = new SuperPowerLoraLoaderWidget("lora_" + (++this.loraWidgetsCounter), this);
                 widget.value = v;
                 this.addCustomWidget(widget);
             }
@@ -108,13 +108,6 @@ class RgthreeSuperPowerLoraLoader extends RgthreeBaseServerNode {
         this.addNonLoraWidgets();
         this._augmentSuperUI();
         this.addMasterCollapseControls();
-        
-        // Ensure all widgets have proper node references for collapse state checking
-        this.widgets.forEach(widget => {
-            if (widget instanceof SuperPowerLoraLoaderWidget) {
-                widget.node = this;
-            }
-        });
         
         this.size[0] = this._tempWidth;
         this.size[1] = Math.max(this._tempHeight, this.computeSize()[1]);
@@ -168,7 +161,7 @@ class RgthreeSuperPowerLoraLoader extends RgthreeBaseServerNode {
     _augmentSuperUI() {
         // Remove any previous super header and template buttons to keep idempotent.
         this.widgets = this.widgets.filter(w => !(
-            w instanceof SuperPowerLoraLoaderHeaderWidget ||
+            w?.value?.type === "SuperPowerLoraLoaderHeaderWidget" ||
             w.name === "💾 Save Template" ||
             w.name === "📂 Load Template" ||
             w.name === "⚙️ Settings"
@@ -183,7 +176,7 @@ class RgthreeSuperPowerLoraLoader extends RgthreeBaseServerNode {
         }
         
         // Add gear icon settings widget right after header
-        const newHeaderIdx = this.widgets.findIndex(w => w instanceof SuperPowerLoraLoaderHeaderWidget);
+        const newHeaderIdx = this.widgets.findIndex(w => w?.value?.type === "SuperPowerLoraLoaderHeaderWidget");
         if (newHeaderIdx >= 0) {
             this.widgets.splice(newHeaderIdx + 1, 0, new RgthreeBetterButtonWidget("⚙️ Settings", (event) => {
                 this.showSettingsMenu(event);
@@ -232,11 +225,11 @@ class RgthreeSuperPowerLoraLoader extends RgthreeBaseServerNode {
 
         addNewLoraWidget(lora) {
             this.loraWidgetsCounter++;
-            const widget = this.addCustomWidget(new SuperPowerLoraLoaderWidget("lora_"+this.loraWidgetsCounter));
+            const widget = this.addCustomWidget(new SuperPowerLoraLoaderWidget("lora_"+this.loraWidgetsCounter, this));
             if (lora) widget.setLora(lora);
             
             // Ensure General header exists
-            if (!this.widgets.some(w => w instanceof SuperPowerLoraTagHeaderWidget && w.tag === "General")) {
+            if (!this.widgets.some(w => w?.value?.type === "SuperPowerLoraTagHeaderWidget" && w.tag === "General")) {
                 const header = new SuperPowerLoraTagHeaderWidget("General");
                 // Insert at the beginning (before any other headers or widgets)
                 let insertIndex = 0;
@@ -248,7 +241,7 @@ class RgthreeSuperPowerLoraLoader extends RgthreeBaseServerNode {
             }
             
             // Ensure General tag is expanded when adding new LoRAs
-            const generalHeader = this.widgets.find(w => w instanceof SuperPowerLoraTagHeaderWidget && w.tag === "General");
+            const generalHeader = this.widgets.find(w => w?.value?.type === "SuperPowerLoraTagHeaderWidget" && w.tag === "General");
             if (generalHeader && generalHeader.value.collapsed) {
                 generalHeader.value.collapsed = false;
                 generalHeader.updateVisibility(this);
@@ -332,7 +325,7 @@ class RgthreeSuperPowerLoraLoader extends RgthreeBaseServerNode {
                         content: `Assign Tag`,
                         callback: () => {
                             // Get existing tags
-                            const existingTags = new Set(this.widgets.filter(w => w instanceof SuperPowerLoraTagHeaderWidget).map(w => w.tag));
+                            const existingTags = new Set(this.widgets.filter(w => w?.value?.type === "SuperPowerLoraTagHeaderWidget").map(w => w.tag));
                             const commonTags = ["General", "Character", "Style", "Quality", "Effect"];
                             const allTags = new Set([...commonTags, ...existingTags]);
                             const menuItems = [];
@@ -452,11 +445,11 @@ class RgthreeSuperPowerLoraLoader extends RgthreeBaseServerNode {
             const tag = widget.value.tag || "General";
             
             // Check if header exists for this tag
-            if (!this.widgets.some(w => w instanceof SuperPowerLoraTagHeaderWidget && w.tag === tag)) {
+            if (!this.widgets.some(w => w?.value?.type === "SuperPowerLoraTagHeaderWidget" && w.tag === tag)) {
                 // Create header
                 const header = new SuperPowerLoraTagHeaderWidget(tag);
                 // Find correct position for header based on sorted order
-                const existingHeaders = this.widgets.filter(w => w instanceof SuperPowerLoraTagHeaderWidget);
+                const existingHeaders = this.widgets.filter(w => w?.value?.type === "SuperPowerLoraTagHeaderWidget");
                 const allTags = existingHeaders.map(h => h.tag);
                 allTags.push(tag);
                 allTags.sort((a, b) => a === "General" ? -1 : b === "General" ? 1 : a.localeCompare(b));
@@ -481,7 +474,7 @@ class RgthreeSuperPowerLoraLoader extends RgthreeBaseServerNode {
             }
             
             // Now move the widget to its group
-            const headerIndex = this.widgets.findIndex(w => w instanceof SuperPowerLoraTagHeaderWidget && w.tag === tag);
+            const headerIndex = this.widgets.findIndex(w => w?.value?.type === "SuperPowerLoraTagHeaderWidget" && w.tag === tag);
             if (headerIndex !== -1) {
                 // Find the end of this group
                 let insertIndex = headerIndex + 1;
@@ -513,7 +506,7 @@ class RgthreeSuperPowerLoraLoader extends RgthreeBaseServerNode {
                 
                 // For LoRA widgets, check if their tag header is collapsed
                 const tag = widget.value?.tag || "General";
-                const header = this.widgets.find(w => w instanceof SuperPowerLoraTagHeaderWidget && w.tag === tag);
+                const header = this.widgets.find(w => w?.value?.type === "SuperPowerLoraTagHeaderWidget" && w.tag === tag);
                 return !header || !header.value.collapsed;
             });
         }
@@ -612,7 +605,7 @@ class SuperPowerLoraLoaderHeaderWidget extends RgthreeBaseWidget {
     onToggleDown(event, pos, node) { node.toggleAllLoras(); this.cancelMouseDown(); return true; }
     onTriggerToggleDown(event, pos, node) { node.properties[PROP_LABEL_SHOW_TRIGGER_WORDS] = !node.properties[PROP_LABEL_SHOW_TRIGGER_WORDS]; node._ensureMinWidth?.(); node.setDirtyCanvas(true,true); this.cancelMouseDown(); return true; }
     onCollapseAllDown(event, pos, node) {
-        const headers = node.widgets.filter(w => w instanceof SuperPowerLoraTagHeaderWidget);
+        const headers = node.widgets.filter(w => w?.value?.type === "SuperPowerLoraTagHeaderWidget");
         headers.forEach(header => {
             header.value.collapsed = true;
             header.updateVisibility(node);
@@ -621,7 +614,7 @@ class SuperPowerLoraLoaderHeaderWidget extends RgthreeBaseWidget {
         return true;
     }
     onExpandAllDown(event, pos, node) {
-        const headers = node.widgets.filter(w => w instanceof SuperPowerLoraTagHeaderWidget);
+        const headers = node.widgets.filter(w => w?.value?.type === "SuperPowerLoraTagHeaderWidget");
         headers.forEach(header => {
             header.value.collapsed = false;
             header.updateVisibility(node);
@@ -735,8 +728,9 @@ class SuperPowerLoraTagHeaderWidget extends RgthreeBaseWidget {
 
 const DEFAULT_LORA_WIDGET_DATA = { on: true, lora: null, triggerWord: "", strength: 1, strengthTwo: null, tag: "General" };
 class SuperPowerLoraLoaderWidget extends RgthreeBaseWidget {
-    constructor(name) {
+    constructor(name, ownerNode) {
         super(name);
+        this._rgthreeOwnerNode = ownerNode;
         this.type = "custom";
         this.haveMouseMovedStrength = false;
         this.showModelAndClip = null;
@@ -772,7 +766,7 @@ class SuperPowerLoraLoaderWidget extends RgthreeBaseWidget {
     setLora(lora) { this._value.lora = lora; }
     shouldBeDrawn(node) {
         // Check if this widget should be drawn (not collapsed)
-        const targetNode = node || this.node;
+        const targetNode = node || this._rgthreeOwnerNode;
         if (!targetNode || !this.name?.startsWith("lora_")) {
             return true; // Non-LoRA widgets are always drawn
         }
@@ -784,13 +778,13 @@ class SuperPowerLoraLoaderWidget extends RgthreeBaseWidget {
         
         // For LoRA widgets, check if their tag header is collapsed
         const tag = this.value?.tag || "General";
-        const header = targetNode.widgets.find(w => w instanceof SuperPowerLoraTagHeaderWidget && w.tag === tag);
+        const header = targetNode.widgets.find(w => w?.value?.type === "SuperPowerLoraTagHeaderWidget" && w.tag === tag);
         return !header || !header.value.collapsed;
     }
 
     computeSize() {
         // Return 0 size if widget shouldn't be drawn
-        const targetNode = this.node;
+        const targetNode = this._rgthreeOwnerNode;
         if (targetNode && !this.shouldBeDrawn(targetNode)) {
             return [0, 0];
         }
@@ -805,7 +799,7 @@ class SuperPowerLoraLoaderWidget extends RgthreeBaseWidget {
         
         // Widget drawing logic - no longer needs to check visible property
         // as visibility is handled at the node level
-        this.node = node; // Store reference to node
+        this._rgthreeOwnerNode = node;
         const currentShowModelAndClip = node.properties[PROP_LABEL_SHOW_STRENGTHS] === PROP_VALUE_SHOW_STRENGTHS_SEPARATE;
         if (this.showModelAndClip !== currentShowModelAndClip) {
             const old = this.showModelAndClip; this.showModelAndClip = currentShowModelAndClip;
@@ -894,16 +888,16 @@ class SuperPowerLoraLoaderWidget extends RgthreeBaseWidget {
         ctx.restore();
     }
     serializeValue(node, index) { const v = { ...this.value }; if (!this.showModelAndClip) delete v.strengthTwo; else v.strengthTwo = this.value.strengthTwo ?? 1; return v; }
-    onToggleDown() { if (!this.shouldBeDrawn(this.node)) return false; this.value.on = !this.value.on; this.cancelMouseDown(); return true; }
+    onToggleDown() { if (!this.shouldBeDrawn(this._rgthreeOwnerNode)) return false; this.value.on = !this.value.on; this.cancelMouseDown(); return true; }
     onTagClick(event) {
-        if (!this.shouldBeDrawn(this.node)) return false;
+        if (!this.shouldBeDrawn(this._rgthreeOwnerNode)) return false;
         // Only show tag menu if tags are enabled
-        if (!this.node.properties[PROP_LABEL_ENABLE_TAGS_STATIC]) {
+        if (!this._rgthreeOwnerNode.properties[PROP_LABEL_ENABLE_TAGS_STATIC]) {
             return;
         }
         
         // Get existing tags
-        const existingTags = new Set(this.node.widgets.filter(w => w instanceof SuperPowerLoraTagHeaderWidget).map(w => w.tag));
+        const existingTags = new Set(this._rgthreeOwnerNode.widgets.filter(w => w?.value?.type === "SuperPowerLoraTagHeaderWidget").map(w => w.tag));
         const commonTags = ["General", "Character", "Style", "Quality", "Effect"];
         const allTags = new Set([...commonTags, ...existingTags]);
         const menuItems = [];
@@ -926,61 +920,61 @@ class SuperPowerLoraLoaderWidget extends RgthreeBaseWidget {
         this.value.tag = tag;
         
         // Only create headers and move widgets if tags are enabled
-        if (!this.node.properties[PROP_LABEL_ENABLE_TAGS_STATIC]) {
-            this.node.setDirtyCanvas(true, true);
+        if (!this._rgthreeOwnerNode.properties[PROP_LABEL_ENABLE_TAGS_STATIC]) {
+            this._rgthreeOwnerNode.setDirtyCanvas(true, true);
             return;
         }
         
         // Check if header exists for this tag
-        if (!this.node.widgets.some(w => w instanceof SuperPowerLoraTagHeaderWidget && w.tag === tag)) {
+        if (!this._rgthreeOwnerNode.widgets.some(w => w?.value?.type === "SuperPowerLoraTagHeaderWidget" && w.tag === tag)) {
             // Create header
             const header = new SuperPowerLoraTagHeaderWidget(tag);
             // Find position for header
-            const headerWidgets = this.node.widgets.filter(w => w instanceof SuperPowerLoraTagHeaderWidget);
+            const headerWidgets = this._rgthreeOwnerNode.widgets.filter(w => w?.value?.type === "SuperPowerLoraTagHeaderWidget");
             const headerTags = headerWidgets.map(w => w.tag);
             headerTags.push(tag);
             headerTags.sort((a, b) => a === "General" ? -1 : b === "General" ? 1 : a.localeCompare(b));
             const pos = headerTags.indexOf(tag);
             let insertIndex = 0;
             if (pos < headerWidgets.length) {
-                insertIndex = this.node.widgets.indexOf(headerWidgets[pos]);
+                insertIndex = this._rgthreeOwnerNode.widgets.indexOf(headerWidgets[pos]);
             } else {
                 // After last header
                 const lastHeader = headerWidgets[headerWidgets.length - 1];
-                insertIndex = this.node.widgets.indexOf(lastHeader) + 1;
+                insertIndex = this._rgthreeOwnerNode.widgets.indexOf(lastHeader) + 1;
                 // Skip LoRAs in the last group
-                while (insertIndex < this.node.widgets.length && this.node.widgets[insertIndex].name?.startsWith("lora_")) {
+                while (insertIndex < this._rgthreeOwnerNode.widgets.length && this._rgthreeOwnerNode.widgets[insertIndex].name?.startsWith("lora_")) {
                     insertIndex++;
                 }
             }
-            this.node.widgets.splice(insertIndex, 0, header);
+            this._rgthreeOwnerNode.widgets.splice(insertIndex, 0, header);
         }
-        this.node.moveWidgetToCorrectGroup(this);
-        this.node.setDirtyCanvas(true, true);
+        this._rgthreeOwnerNode.moveWidgetToCorrectGroup(this);
+        this._rgthreeOwnerNode.setDirtyCanvas(true, true);
     }
-        onMoveUpClick(event,pos,node) { if (!this.shouldBeDrawn(node || this.node)) return false; node = node || this.node; if(!node) return true; const widgets = node.widgets; const index = widgets.indexOf(this); const canMoveUp = !!(widgets[index-1]?.name?.startsWith("lora_")); if (canMoveUp) { moveArrayItem(widgets, this, index-1); node.setDirtyCanvas(true,true);} this.cancelMouseDown(); return true; }
-        onMoveDownClick(event,pos,node) { if (!this.shouldBeDrawn(node || this.node)) return false; node = node || this.node; if(!node) return true; const widgets = node.widgets; const index = widgets.indexOf(this); const canMoveDown = !!(widgets[index+1]?.name?.startsWith("lora_")); if (canMoveDown) { moveArrayItem(widgets, this, index+1); node.setDirtyCanvas(true,true);} this.cancelMouseDown(); return true; }
-        onRemoveClick(event,pos,node) { if (!this.shouldBeDrawn(node || this.node)) return false; node = node || this.node; if(!node) return true; const widgets = node.widgets; removeArrayItem(widgets, this); const computed = node.computeSize && node.computeSize(); if (computed) node.size[1] = Math.max((node._tempHeight ?? 15), computed[1]); node.setDirtyCanvas(true,true); this.cancelMouseDown(); return true; }
-    onLoraClick(event) { if (!this.shouldBeDrawn(this.node)) return false; showLoraChooser(event, (value) => { if (typeof value === "string") { this.value.lora = value; this.node.setDirtyCanvas(true,true);} }); this.cancelMouseDown(); }
+        onMoveUpClick(event,pos,node) { if (!this.shouldBeDrawn(node || this._rgthreeOwnerNode)) return false; node = node || this._rgthreeOwnerNode; if(!node) return true; const widgets = node.widgets; const index = widgets.indexOf(this); const canMoveUp = !!(widgets[index-1]?.name?.startsWith("lora_")); if (canMoveUp) { moveArrayItem(widgets, this, index-1); node.setDirtyCanvas(true,true);} this.cancelMouseDown(); return true; }
+        onMoveDownClick(event,pos,node) { if (!this.shouldBeDrawn(node || this._rgthreeOwnerNode)) return false; node = node || this._rgthreeOwnerNode; if(!node) return true; const widgets = node.widgets; const index = widgets.indexOf(this); const canMoveDown = !!(widgets[index+1]?.name?.startsWith("lora_")); if (canMoveDown) { moveArrayItem(widgets, this, index+1); node.setDirtyCanvas(true,true);} this.cancelMouseDown(); return true; }
+        onRemoveClick(event,pos,node) { if (!this.shouldBeDrawn(node || this._rgthreeOwnerNode)) return false; node = node || this._rgthreeOwnerNode; if(!node) return true; const widgets = node.widgets; removeArrayItem(widgets, this); const computed = node.computeSize && node.computeSize(); if (computed) node.size[1] = Math.max((node._tempHeight ?? 15), computed[1]); node.setDirtyCanvas(true,true); this.cancelMouseDown(); return true; }
+    onLoraClick(event) { if (!this.shouldBeDrawn(this._rgthreeOwnerNode)) return false; showLoraChooser(event, (value) => { if (typeof value === "string") { this.value.lora = value; this._rgthreeOwnerNode.setDirtyCanvas(true,true);} }); this.cancelMouseDown(); }
         onTriggerWordClick(event,pos,node) {
-            if (!this.shouldBeDrawn(node || this.node)) return false;
+            if (!this.shouldBeDrawn(node || this._rgthreeOwnerNode)) return false;
             const canvas = app.canvas;
-            const parentNode = node || this.node;
+            const parentNode = node || this._rgthreeOwnerNode;
             canvas.prompt("Trigger Word", this.value.triggerWord || "", (v)=> {
                 this.value.triggerWord = v;
                 parentNode?.setDirtyCanvas(true,true);
             }, event);
             this.cancelMouseDown();
         }
-    onStrengthDecDown() { if (!this.shouldBeDrawn(this.node)) return false; this.stepStrength(-1,false); }
-    onStrengthIncDown() { if (!this.shouldBeDrawn(this.node)) return false; this.stepStrength(1,false); }
-    onStrengthTwoDecDown() { if (!this.shouldBeDrawn(this.node)) return false; this.stepStrength(-1,true); }
-    onStrengthTwoIncDown() { if (!this.shouldBeDrawn(this.node)) return false; this.stepStrength(1,true); }
-    onStrengthAnyMove(event) { if (!this.shouldBeDrawn(this.node)) return false; this.doOnStrengthAnyMove(event,false); }
-    onStrengthTwoAnyMove(event) { if (!this.shouldBeDrawn(this.node)) return false; this.doOnStrengthAnyMove(event,true); }
+    onStrengthDecDown() { if (!this.shouldBeDrawn(this._rgthreeOwnerNode)) return false; this.stepStrength(-1,false); }
+    onStrengthIncDown() { if (!this.shouldBeDrawn(this._rgthreeOwnerNode)) return false; this.stepStrength(1,false); }
+    onStrengthTwoDecDown() { if (!this.shouldBeDrawn(this._rgthreeOwnerNode)) return false; this.stepStrength(-1,true); }
+    onStrengthTwoIncDown() { if (!this.shouldBeDrawn(this._rgthreeOwnerNode)) return false; this.stepStrength(1,true); }
+    onStrengthAnyMove(event) { if (!this.shouldBeDrawn(this._rgthreeOwnerNode)) return false; this.doOnStrengthAnyMove(event,false); }
+    onStrengthTwoAnyMove(event) { if (!this.shouldBeDrawn(this._rgthreeOwnerNode)) return false; this.doOnStrengthAnyMove(event,true); }
     doOnStrengthAnyMove(event,isTwo=false) { if (event.deltaX) { const prop = isTwo?"strengthTwo":"strength"; this.haveMouseMovedStrength = true; this.value[prop] = (this.value[prop] ?? 1) + event.deltaX * 0.05; } }
-    onStrengthValUp(event) { if (!this.shouldBeDrawn(this.node)) return false; this.doOnStrengthValUp(event,false); }
-    onStrengthTwoValUp(event) { if (!this.shouldBeDrawn(this.node)) return false; this.doOnStrengthValUp(event,true); }
+    onStrengthValUp(event) { if (!this.shouldBeDrawn(this._rgthreeOwnerNode)) return false; this.doOnStrengthValUp(event,false); }
+    onStrengthTwoValUp(event) { if (!this.shouldBeDrawn(this._rgthreeOwnerNode)) return false; this.doOnStrengthValUp(event,true); }
     doOnStrengthValUp(event,isTwo=false) { if (this.haveMouseMovedStrength) return; const prop = isTwo?"strengthTwo":"strength"; const canvas = app.canvas; canvas.prompt("Value", this.value[prop], (v)=> this.value[prop]=Number(v), event); }
 
     onMouseDown(event, pos, node) {
