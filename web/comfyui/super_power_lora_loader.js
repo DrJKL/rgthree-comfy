@@ -46,13 +46,12 @@ class RgthreeSuperPowerLoraLoader extends RgthreeBaseServerNode {
 
     configure(info) {
         // Rebuild widgets similarly to base node configure but include trigger/template features.
+        while (this.widgets?.length) this.removeWidget(0);
+        this.widgetButtonSpacer = null;
         let hadId = !!info.id;
         if (hadId) super.configure(info);
         this._tempWidth = this.size[0];
         this._tempHeight = this.size[1];
-        // Remove existing
-        while (this.widgets?.length) this.removeWidget(0);
-        this.widgetButtonSpacer = null;
 
         // Collect LoRA values and preserved header states
         let loraValues = [];
